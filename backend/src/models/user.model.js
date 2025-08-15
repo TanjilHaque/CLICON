@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const { customError } = require("../uitils/customError");
 const { Schema, Types } = mongoose;
+const jwt = require("jsonwebtoken");
+const { func } = require("joi");
+require("dotenv").config();
 
 const userSchema = new Schema({
   firstName: {
@@ -19,6 +23,8 @@ const userSchema = new Schema({
   email: {
     type: String,
     trim: true,
+    required: true,
+    unique: true,
   },
   password: {
     type: String,
@@ -118,5 +124,54 @@ userSchema.pre("save", async function (next) {
   }
   next();
 });
+
+//check if the user already exists
+userSchema.pre("save", async function (next) {
+  const findUser = await this.constructor.findOne({ email: this.email });
+  if (findUser && findUser._id.toString() !== this._id.toString()) {
+    throw new customError(400, "user already exists, try another email");
+  }
+  next();
+});
+
+//generate accessToken method
+userSchema.methods.generateAccessToken = function () {
+  const accessToken = jwt.sign(
+    {
+      userId: this._id,
+      email: this.email,
+      role: this.role,
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRE,
+    }
+  );
+  return accessToken;
+};
+
+//generate refreshToken method
+userSchema.methods.generateRefreshToken = function () {
+  const refreshToken = jwt.sign(
+    {
+      userId: this._id,
+    },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRE,
+    }
+  );
+  return refreshToken;
+};
+
+//verify access token method
+userSchema.methods.verifyAccessToken = function (token) {
+  return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+};
+
+//verify refresh token method
+userSchema.methods.verifyRefreshToken = function (token) {
+  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+};
 
 module.exports = mongoose.model("User", userSchema);

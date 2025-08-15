@@ -1,0 +1,36 @@
+1xx — Informational
+	•	100 Continue – Request OK so far, continue sending.
+	•	101 Switching Protocols – Protocol change (e.g., HTTP → WebSocket).
+	•	102 Processing (WebDAV) – Request received, still processing.
+
+2xx — Success
+	•	200 OK – Standard success.
+	•	201 Created – New resource created (POST/PUT).
+	•	202 Accepted – Request accepted for async processing.
+	•	204 No Content – Success, but no response body (common with DELETE).
+
+3xx — Redirection
+	•	301 Moved Permanently – Resource has a new permanent URL.
+	•	302 Found – Temporary redirect (often misused).
+	•	303 See Other – Redirect with GET (after POST).
+	•	304 Not Modified – Client’s cached version still valid.
+	•	307 Temporary Redirect – Like 302 but method preserved.
+	•	308 Permanent Redirect – Like 301 but method preserved.
+
+4xx — Client Errors
+	•	400 Bad Request – Invalid data or malformed syntax.
+	•	401 Unauthorized – Missing or invalid authentication.
+	•	403 Forbidden – Authenticated but no permission.
+	•	404 Not Found – Resource doesn’t exist.
+	•	405 Method Not Allowed – Wrong HTTP method (e.g., POST on GET-only route).
+	•	409 Conflict – State conflict (e.g., duplicate data).
+	•	410 Gone – Resource permanently removed.
+	•	422 Unprocessable Entity – Validation failed (often used in APIs).
+	•	429 Too Many Requests – Rate limit exceeded.
+
+5xx — Server Errors
+	•	500 Internal Server Error – Generic server crash.
+	•	501 Not Implemented – Feature not supported.
+	•	502 Bad Gateway – Invalid response from upstream server.
+	•	503 Service Unavailable – Server down/overloaded.
+	•	504 Gateway Timeout – Upstream server didn’t respond in time.
