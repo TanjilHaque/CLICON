@@ -1,6 +1,13 @@
 const Joi = require("joi");
 const { customError } = require("../uitils/customError");
 
+//regex variables
+const bdPhoneRegex = /^(?:\+8801[3-9]\d{8}|01[3-9]\d{8})$/;
+const emailRegex = /^[\w.-]+@[\\w.-]+\\.[A-Za-z]{2,}$/;
+const passwordRegex =
+  /^(?=.{8,}$)(?=.*\d|.*\W)(?!.*[.\n])(?=.*[A-Z])(?=.*[a-z]).*$/;
+
+// implementing joi
 const userSchema = Joi.object({
   firstName: Joi.string().trim().empty("").required().messages({
     "string.empty": "Name is required.",
@@ -9,20 +16,26 @@ const userSchema = Joi.object({
   email: Joi.string()
     .required()
     .empty()
-    .pattern(new RegExp("^[\\w.-]+@[\\w.-]+\\.[A-Za-z]{2,}$"))
+    .pattern(new RegExp(emailRegex))
     .messages({
       "string.pattern.base": "Please enter a valid email address.",
       "string.empty": "Email is required.",
     }),
+  phoneNumber: Joi.string()
+    .required()
+    .empty("")
+    .pattern(new RegExp(bdPhoneRegex))
+    .messages({
+      "string.empty": "Phone number is required.",
+      "any.required": "Phone number is a required field.",
+      "string.pattern.base":
+        "Phone number must be a valid Bangladeshi number starting with 01XXXXXXXXX or +8801XXXXXXXXX.",
+    }),
   password: Joi.string()
     .trim()
-    .empty()
+    .empty("")
     .required()
-    .pattern(
-      new RegExp(
-        "(?=^.{8,}$)((?=.*d)|(?=.*W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$"
-      )
-    )
+    .pattern(new RegExp(passwordRegex))
     .messages({
       "string.empty": "Password is required.",
       "any.required": "Password is a required field.",
@@ -34,6 +47,7 @@ const userSchema = Joi.object({
   allowUnknown: true,
 });
 
+// user validation function
 exports.validateUser = async (req) => {
   try {
     const value = await userSchema.validateAsync(req.body);

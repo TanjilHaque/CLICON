@@ -12,12 +12,12 @@ const transporter = nodemailer.createTransport({
 });
 
 //sending the mail
-const sendMail = async () => {
+exports.sendMail = async (receiverMail, template) => {
   const info = await transporter.sendMail({
     from: "Clicon Ecommerce",
-    to: "tanjil8778@gmail.com",
+    to: receiverMail,
     subject: "Confirm Registration",
-    html: "<b>Hello world?</b>", // HTML body
+    html: template, // HTML body
   });
 
   console.log("Message sent:", info.messageId);

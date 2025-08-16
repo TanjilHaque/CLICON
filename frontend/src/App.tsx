@@ -1,8 +1,11 @@
-import React from 'react'
+
+import OfferBar from './components/BarComponents/OfferBar'
 
 const App = () => {
   return (
-    <div>App</div>
+    <div>
+      <OfferBar></OfferBar>
+    </div>
   )
 }
 
