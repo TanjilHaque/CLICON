@@ -20,19 +20,16 @@ const userSchema = new Schema({
     type: String,
     trim: true,
   },
-  email: {
+  credential: {
     type: String,
     trim: true,
     unique: true,
+    required: true,
   },
   password: {
     type: String,
     trim: true,
     required: true,
-  },
-  phoneNumber: {
-    type: String,
-    trim: true,
   },
   image: {
     type: String,
@@ -42,11 +39,7 @@ const userSchema = new Schema({
     type: String,
     trim: true,
   },
-  isEmailVerified: {
-    type: Boolean,
-    default: false,
-  },
-  isPhoneVerified: {
+  isUserVerified: {
     type: Boolean,
     default: false,
   },

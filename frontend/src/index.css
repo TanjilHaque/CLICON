@@ -7,6 +7,9 @@
 @theme {
   /* Custom Color Variables */
   --color-gray-0: #ffffff; /* Gray/00 - Pure white */
+  --color-gray-50: #f2f4f5;
+  --color-gray-500: #77878f;
+  --color-gray-600: #5f6c72;
   --color-gray-800: #303639; /* Gray/800 - Dark gray */
   --color-gray-900: #191c1f; /* Gray/900 - Very dark gray */
 
@@ -20,6 +23,9 @@
   --color-dark-gray: #303639;
   --color-yellow-light: #f3de6d;
   --color-yellow: #ebc80c;
+
+  /* Secondary colors Blue */
+  --color-secondary-700: #1b6392;
 
   /* Font Family Variables */
   --font-public-sans: "Public Sans", sans-serif;
@@ -43,6 +49,7 @@
   --bg-secondary: var(--color-gray-0);
   --bg-dark: var(--color-gray-900);
   --bg-accent: var(--color-gray-800);
+  --bg-secondary: var(--color-secondary-700);
 
   /* Text colors */
   --text-primary: var(--color-gray-900);
