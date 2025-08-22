@@ -3,7 +3,6 @@ const bcrypt = require("bcrypt");
 const { customError } = require("../uitils/customError");
 const { Schema, Types } = mongoose;
 const jwt = require("jsonwebtoken");
-const { func } = require("joi");
 require("dotenv").config();
 
 const userSchema = new Schema({
@@ -115,27 +114,41 @@ const userSchema = new Schema({
 //schema middleware
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
-    const saltPassword = await bcrypt.hash(this.password, 10);
-    this.password = saltPassword;
+    try {
+      const saltPassword = await bcrypt.hash(this.password, 10);
+      this.password = saltPassword;
+    } catch (error) {
+      console.log("error from bycrypt hashing password middleware");
+    }
   }
   next();
 });
 
 //check if the user already exists
 userSchema.pre("save", async function (next) {
-  const findUser = await this.constructor.findOne({ email: this.email });
+  const findUser = await this.constructor.findOne({
+    credential: this.credential,
+  });
   if (findUser && findUser._id.toString() !== this._id.toString()) {
-    throw new customError(400, "user already exists, try another email");
+    throw new customError(
+      400,
+      "user already exists, try another email or phone number"
+    );
   }
   next();
 });
 
+// compare password
+userSchema.methods.compareHashPassword = async function (plainPassword) {
+  return await bcrypt.compare(plainPassword, this.password);
+};
+
 //generate accessToken method
-userSchema.methods.generateAccessToken = function () {
-  const accessToken = jwt.sign(
+userSchema.methods.generateAccessToken = async function () {
+  return await jwt.sign(
     {
       userId: this._id,
-      email: this.email,
+      credential: this.credential,
       role: this.role,
     },
     process.env.ACCESS_TOKEN_SECRET,
@@ -147,8 +160,8 @@ userSchema.methods.generateAccessToken = function () {
 };
 
 //generate refreshToken method
-userSchema.methods.generateRefreshToken = function () {
-  const refreshToken = jwt.sign(
+userSchema.methods.generateRefreshToken = async function () {
+  return await jwt.sign(
     {
       userId: this._id,
     },
