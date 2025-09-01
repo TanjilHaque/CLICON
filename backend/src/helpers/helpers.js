@@ -22,3 +22,8 @@ exports.sendMail = async (receiverMail, template) => {
 
   console.log("Message sent:", info.messageId);
 };
+
+//otp generator
+exports.otpGenerator = () => {
+  return Math.floor(100000 + Math.random() * 900000);
+};

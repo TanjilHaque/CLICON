@@ -7,7 +7,7 @@ const {
   validateRegistration,
   validateLogin,
 } = require("../validation/user.validation");
-const { sendMail } = require("../helpers/helpers");
+const { sendMail, otpGenerator } = require("../helpers/helpers");
 const { registrationTemplate } = require("../template/template");
 const bdPhoneRegex = /^(?:\+8801[3-9]\d{8}|01[3-9]\d{8})$/;
 const emailRegex = /^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/;
@@ -26,11 +26,20 @@ exports.registration = asyncHandler(async (req, res) => {
     throw new customError(500, "Retgistration failed try again!");
   }
 
-  //email verification
+  //sending verification email
   if (emailRegex.test(credential)) {
     const verificationUrl = `https://dummyjson.com/`;
-    const template = registrationTemplate(firstName, verificationUrl);
+    const expireTime = Date.now() * 3600 * 10000;
+    const template = registrationTemplate(
+      firstName,
+      verificationUrl,
+      otpGenerator,
+      expireTime
+    );
     await sendMail(credential, template);
+    user.resetPasswordOtp = otpGenerator;
+    user.resetPasswordExpireTime = expireTime;
+    await user.save();
     apiResponse.sendSuccess(res, 201, "Registration successful", {
       firstName,
       credential,
@@ -50,6 +59,7 @@ exports.login = asyncHandler(async (req, res) => {
   const { credential, password } = value;
   const user = await User.findOne({ credential: credential });
   const isPasswordCorrect = await user.compareHashPassword(password);
+  //console.log(isPasswordCorrect);
   if (!isPasswordCorrect) {
     throw new customError(
       400,
@@ -66,8 +76,34 @@ exports.login = asyncHandler(async (req, res) => {
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: isProduction ? true : false,
-    sameSite: none,
+    sameSite: "none",
     path: "/",
     maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days
   });
+
+  apiResponse.sendSuccess(res, 200, "Login Successful", {
+    accessToken: accessToken,
+    userName: user.firstName,
+    credential: user.credential,
+  });
+});
+
+//verify the user
+exports.emailVerifcation = asyncHandler(async (req, res) => {
+  const { credential, otp } = req.body;
+  if (emailRegex.test(credential)) {
+    if (!otp) {
+      throw new customError(401, "OTP not found");
+    }
+    const findUser = await User.findOne({
+      credential: credential,
+      resetPasswordExpireTime: { $gt: Date.now() },
+      resetPasswordOtp: otp,
+    });
+    if (!findUser) {
+      throw new customError(401, "user not found");
+    }
+  } else {
+    throw new customError(401, "Credential must be an email");
+  }
 });

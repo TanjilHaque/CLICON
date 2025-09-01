@@ -1,4 +1,9 @@
-exports.registrationTemplate = (firstName, verificationUrl) => {
+exports.registrationTemplate = (
+  firstName,
+  verificationUrl,
+  otpGenerator,
+  expireTime
+) => {
   return `
 <html lang="en">
 <head>
@@ -65,9 +70,13 @@ exports.registrationTemplate = (firstName, verificationUrl) => {
     </div>
     <div class="content">
       <h2>Hello ${firstName},</h2>
+      <h2>Your OTP number is: ${otpGenerator},</h2>
       <p>
         Thank you for registering with <strong>CLICON</strong>.  
         To complete your registration, please verify your email address.
+      </p>
+      <p>
+       Your Validation expire time is: ${expireTime}
       </p>
       <a href=${verificationUrl} class="button">Verify Email</a>
       <p>
