@@ -25,5 +25,6 @@ exports.sendMail = async (receiverMail, template) => {
 
 //otp generator
 exports.otpGenerator = () => {
-  return Math.floor(100000 + Math.random() * 900000);
+  const otp = Math.floor(100000 + Math.random() * 900000);
+  return otp;
 };

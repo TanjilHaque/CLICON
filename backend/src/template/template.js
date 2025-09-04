@@ -1,7 +1,7 @@
 exports.registrationTemplate = (
   firstName,
   verificationUrl,
-  otpGenerator,
+  otp,
   expireTime
 ) => {
   return `
@@ -70,7 +70,7 @@ exports.registrationTemplate = (
     </div>
     <div class="content">
       <h2>Hello ${firstName},</h2>
-      <h2>Your OTP number is: ${otpGenerator},</h2>
+      <h2>Your OTP number is: ${otp},</h2>
       <p>
         Thank you for registering with <strong>CLICON</strong>.  
         To complete your registration, please verify your email address.
@@ -94,4 +94,39 @@ exports.registrationTemplate = (
 
     
     `;
+};
+
+exports.forgotPasswordTemplate = (
+  newOtp,
+  expireTime,
+  verifyLink,
+  firstName
+) => {
+  return `
+  <html>
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+      <title>Forgot Password</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333; padding: 20px;">
+      <h2>Hello ${firstName},</h2>
+      <p>You requested to reset your password. Please verify your request using the link below or the OTP provided.</p>
+      
+      <p><strong>OTP:</strong> ${newOtp}</p>
+      <p><strong>This OTP will expire in:</strong> ${expireTime}</p>
+      
+      <p>
+        <a href="${verifyLink}" 
+           style="display: inline-block; background-color: #007bff; color: #fff; padding: 10px 20px; 
+                  text-decoration: none; border-radius: 4px; font-weight: bold;">
+          Verify Now
+        </a>
+      </p>
+      
+      <p>If you didn't request this password reset, you can safely ignore this email.</p>
+      <p>Thanks,<br>The Support Team</p>
+    </body>
+  </html>
+  `;
 };
