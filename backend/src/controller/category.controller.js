@@ -6,6 +6,6 @@ const { asyncHandler } = require("../uitils/asyncHandler");
 const { validateCreateCategory } = require("../validation/category.validation");
 
 exports.createCategory = asyncHandler(async (req, res) => {
-  const value = await validateCreateCategory(req);
-  console.log(value);
+  const { name } = await validateCreateCategory(req);
+  console.log(name);
 });

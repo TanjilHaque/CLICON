@@ -13,6 +13,7 @@ const categorySchema = new Schema(
     image: {
       type: String,
       trim: true,
+      required: true,
     },
     slug: {
       type: String,

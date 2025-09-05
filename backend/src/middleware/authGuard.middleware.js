@@ -1,7 +1,6 @@
 const { customError } = require("../uitils/customError");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
-const { compareSync } = require("bcrypt");
 
 exports.authGuard = async (req, _, next) => {
   const token = req.headers.authorization || req.body.token;
