@@ -221,3 +221,21 @@ exports.getMe = asyncHandler(async (req, res) => {
   }
   apiResponse.sendSuccess(res, 201, "User retrived successfully!", me);
 });
+
+// get refresh token
+exports.postRefreshToken = asyncHandler(async (req, res) => {
+  const token = req.headers.cookie.replace("refreshToken=", " ");
+  if (!token) {
+    throw new customError(401, "Token not found!");
+  }
+  const findUser = await User.findOne({ refreshToken: token });
+  if (!findUser) {
+    throw new customError(401, "user not found");
+  }
+  const accessToken = await findUser.generateAccessToken();
+  apiResponse.sendSuccess(res, 200, "Posting refresh token Successful", {
+    accessToken: accessToken,
+    userName: findUser.firstName,
+    credential: findUser.credential,
+  });
+});

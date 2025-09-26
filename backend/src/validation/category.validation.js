@@ -18,18 +18,70 @@ const createCategorySchema = Joi.object({
 exports.validateCreateCategory = async (req) => {
   try {
     const value = await createCategorySchema.validateAsync(req.body);
+    console.log(req.files);
+
+    // make sure files exist before accessing req.files.image[0]
+    if (!req.files || !req.files.image || req.files.image.length === 0) {
+      throw new customError(400, "ValidationError", "Image not found");
+    }
+
+    const file = req.files.image[0];
+
+    // allowed mimetypes (separate entries)
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/webp",
+      "image/jpg",
+      "image/gif",
+      "image/png",
+      // "image/png" // uncomment if you want to allow PNG
+    ];
+
+    // validate mimetype
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      console.log("Invalid mimetype:", file.mimetype);
+      throw new customError(
+        401,
+        "ValidationError",
+        "Only PNG, JPG, JPEG, and WebP files are allowed"
+      );
+    }
+
+    // validate size (use file.size)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new customError(401, "ValidationError", "Image must be under 5 MB");
+    }
+
     return value;
   } catch (error) {
+    // Safe logging — don't assume the shape of the error
     console.error(
       "Error from createCategory validation:",
-      error.details[0].messages
+      error?.message ?? error
     );
+
+    // If it's already our customError, rethrow it unchanged
+    if (error instanceof customError) {
+      throw error;
+    }
+
+    // If it's a Joi validation error, convert to customError with Joi message
+    if (error?.isJoi || error?.name === "ValidationError") {
+      throw new customError(
+        400,
+        "ValidationError",
+        error.message || "Invalid input"
+      );
+    }
+
+    // Fallback: wrap unknown errors
     throw new customError(
-      400,
-      "Category validation for creation failed",
-      error
+      500,
+      "CategoryValidationError",
+      error.message ?? "Internal validation error"
     );
   }
+  //throw new customError(400, "Category validation for creation failed", error);
 };
 
 // Validation function for category update

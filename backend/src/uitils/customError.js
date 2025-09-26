@@ -1,3 +1,4 @@
+console.log("we are in the custom error file");
 const customError = class CustomError extends Error {
   constructor(statusCode, errorName, message) {
     super(message);
