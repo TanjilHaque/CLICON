@@ -18,7 +18,6 @@ const createCategorySchema = Joi.object({
 exports.validateCreateCategory = async (req) => {
   try {
     const value = await createCategorySchema.validateAsync(req.body);
-    console.log(req.files);
 
     // make sure files exist before accessing req.files.image[0]
     if (!req.files || !req.files.image || req.files.image.length === 0) {
@@ -52,7 +51,7 @@ exports.validateCreateCategory = async (req) => {
       throw new customError(401, "ValidationError", "Image must be under 5 MB");
     }
 
-    return value;
+    return { name: value.name, image: req?.files?.image[0] };
   } catch (error) {
     // Safe logging — don't assume the shape of the error
     console.error(

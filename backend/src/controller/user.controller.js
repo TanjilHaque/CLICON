@@ -19,6 +19,15 @@ const emailRegex = /^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/;
 exports.registration = asyncHandler(async (req, res) => {
   const value = await validateRegistration(req);
   const { firstName, credential, password } = value;
+
+  // check if the credential already exists in the db
+  const userExists = await User.findOne({ credential: credential });
+  if (userExists) {
+    throw new customError(
+      401,
+      "User already exists with this credential! Try another one!"
+    );
+  }
   //save the user info in database
   const user = await new User({
     firstName,
@@ -33,7 +42,7 @@ exports.registration = asyncHandler(async (req, res) => {
   if (emailRegex.test(credential)) {
     const verificationUrl = `https://dummyjson.com/`;
     const otp = otpGenerator();
-    const expireTime = Date.now() + 3600 * 10000;
+    const expireTime = Date.now() + 10 * 60 * 1000; // 10 minutes
     const template = registrationTemplate(
       firstName,
       verificationUrl,
@@ -41,7 +50,7 @@ exports.registration = asyncHandler(async (req, res) => {
       expireTime
     );
     await sendMail(credential, template);
-    user.resetPasswordOtp = otpGenerator();
+    user.resetPasswordOtp = otp;
     user.resetPasswordExpireTime = expireTime;
     await user.save();
     apiResponse.sendSuccess(res, 201, "Registration successful", {
@@ -50,10 +59,11 @@ exports.registration = asyncHandler(async (req, res) => {
     });
   }
   // phone number verification
-  else if (bdPhoneRegex) {
+  else if (bdPhoneRegex.test(credential)) {
     // will do it later...
   } else {
     console.log("Email or Phone number is not valid.");
+    throw new customError(401, "Email or Phone number is not valid.");
   }
 });
 
@@ -98,7 +108,7 @@ exports.login = asyncHandler(async (req, res) => {
 });
 
 //verify the user
-exports.emailVerifcation = asyncHandler(async (req, res) => {
+exports.credentialVerifcation = asyncHandler(async (req, res) => {
   const { credential, otp } = req.body;
   if (emailRegex.test(credential)) {
     if (!otp) {
@@ -111,19 +121,51 @@ exports.emailVerifcation = asyncHandler(async (req, res) => {
         { resetPasswordOtp: otp },
       ],
     });
-    if (!findUser) {
-      throw new customError(401, "user not found");
+    if (!findUser) throw new customError(404, "User not found");
+
+    if (findUser.resetPasswordExpireTime < Date.now()) {
+      throw new customError(401, "OTP has expired, please request a new one");
+    }
+
+    if (findUser.resetPasswordOtp !== otp) {
+      throw new customError(401, "Invalid OTP");
     }
     findUser.resetPasswordOtp = null;
     findUser.resetPasswordExpireTime = null;
     findUser.isUserVerified = true;
+    await findUser.save();
     apiResponse.sendSuccess(res, 200, "Email Verifed Successfully!", {
       credential: findUser.credential,
       firstName: findUser.firstName,
     });
+  } else if (bdPhoneRegex.test(credential)) {
+    //phone verifcation code goes here
   } else {
-    throw new customError(401, "Credential must be an email");
+    throw new customError(401, "Credential must be an email or phone number");
   }
+});
+
+// resend otp
+exports.resendOtp = asyncHandler(async (req, res) => {
+  const { credential } = req.body;
+  const user = await User.findOne({ credential });
+  if (!user) throw new customError(404, "User not found");
+
+  const otp = otpGenerator();
+  const expireTime = Date.now() + 10 * 60 * 1000; // 10 minutes
+  user.resetPasswordOtp = otp;
+  user.resetPasswordExpireTime = expireTime;
+  await user.save();
+
+  const template = registrationTemplate(
+    user.firstName,
+    "https://dummyjson.com/",
+    otp,
+    expireTime
+  );
+  await sendMail(credential, template);
+
+  apiResponse.sendSuccess(res, 200, "OTP resent successfully", { credential });
 });
 
 //forgot password
