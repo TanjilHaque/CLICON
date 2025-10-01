@@ -28,7 +28,31 @@ exports.createCategory = asyncHandler(async (req, res) => {
 
 // get all categroy
 exports.getAllCategory = asyncHandler(async (_, res) => {
-  const allCategory = await categoryModel.find().sort({ createdAt: -1 });
+  const allCategory = await categoryModel.aggregate([
+    {
+      $lookup: {
+        from: "subcategories",
+        localField: "subCategory",
+        foreignField: "_id",
+        as: "subCategoryDetails",
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        image: 1,
+        isActive: 1,
+        createdAt: 1,
+        slug: 1,
+        subCategoryDetails: 1,
+      },
+    },
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+  ]);
   if (!allCategory) {
     throw new customError(401, "Failed to get category!");
   }
