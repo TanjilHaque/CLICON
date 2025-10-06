@@ -198,24 +198,11 @@ productSchema.pre("save", async function (next) {
   next();
 });
 
-// preventing duplicate slug middleware
-productSchema.pre("save", async function (next) {
-  const existingProduct = await this.constructor.findOne({ slug: this.slug });
-  if (
-    existingProduct &&
-    existingProduct._id.toString() !== this._id.toString()
-  ) {
-    throw new customError(
-      401,
-      "Product with this name already exists, try another name!"
-    );
-  }
-  next();
-});
-
 // update slug on name change
 productSchema.pre("findOneAndUpdate", async function (next) {
   const update = this.getUpdate();
+
+  // If name is being updated, generate new slug
   if (update.name) {
     update.slug = slugify(update.name, {
       replacement: "-",
@@ -223,18 +210,28 @@ productSchema.pre("findOneAndUpdate", async function (next) {
       strict: true,
     });
   }
+
   this.setUpdate(update);
 
-  // check exisiting slug again...
-  const existingProduct = await this.constructor.findOne({ slug: this.slug });
-  if (
-    existingProduct &&
-    existingProduct._id.toString() !== this._id.toString()
-  ) {
-    throw new customError(
-      401,
-      "Product with this name already exists, try another name!"
-    );
+  // ✅ Use this.model instead of this.constructor
+  const model = this.model;
+
+  // ✅ Use update.slug (not this.slug) since we're in a query
+  if (update.slug) {
+    const existingProduct = await model.findOne({ slug: update.slug });
+
+    if (
+      existingProduct &&
+      existingProduct._id.toString() !== this.getQuery()._id?.toString()
+    ) {
+      throw new customError(
+        401,
+        "Product with this name already exists, try another name!"
+      );
+    }
   }
+
   next();
 });
+
+module.exports = mongoose.model("Product", productSchema);

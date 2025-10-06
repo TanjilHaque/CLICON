@@ -24,7 +24,7 @@ const discountSchema = new Schema(
     },
     discountType: {
       type: String,
-      enum: ["tk", "percentance"],
+      enum: ["tk", "percentage"],
       required: true,
     },
     discountValueByAmount: {
