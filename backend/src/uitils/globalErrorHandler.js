@@ -28,7 +28,7 @@ const productionErrorResponse = (error, res) => {
   }
 };
 
-exports.golbalErrorHandler = (error, req, res, next) => {
+exports.globalErrorHandler = (error, req, res, next) => {
   if (process.env.NODE_ENV === "development") {
     developmentErrorResponse(error, res);
   }

@@ -1,0 +1,384 @@
+const { apiResponse } = require("../uitils/apiResponse");
+const { asyncHandler } = require("../uitils/asyncHandler");
+const { customError } = require("../uitils/customError");
+const { validateOrder } = require("../validation/order.validation");
+const cartModel = require("../models/cart.model");
+const productModel = require("../models/product.model");
+const variantModel = require("../models/variant.model");
+const veliveryChargeModel = require("../models/deliveryCharge.model");
+const orderModel = require("../models/order.model");
+const crypto = require("crypto");
+const invoiceModel = require("../models/invoice.model");
+const SSLCommerzPayment = require("sslcommerz-lts");
+const { orderTemplate } = require("../template/template");
+const { smsSend, emailSend } = require("../helpers/helpers");
+const { instance } = require("../helpers/axios");
+
+const store_id = process.env.SSLC_STORE_ID;
+const store_passwd = process.env.SSLC_STORE_PASSWORD;
+const is_live = process.env.NODE_ENV == "developement" ? false : true;
+
+// applyDeliveryCharge
+const applyDeliveryCharge = async (dcId) => {
+  const charge = await veliveryChargeModel.findById(dcId);
+  if (!charge) throw new customError(501, "charge not found !!");
+  return charge;
+};
+
+// create order
+exports.createOrder = asyncHandler(async (req, res) => {
+  const { user, guestId, shippingInfo, deliveryCharge, paymentMethod } =
+    await validateOrder(req);
+  const query = user ? { user } : { guestId };
+  const cart = await cartModel
+    .findOne(query)
+    .populate("items.product")
+    .populate("items.variant")
+    .populate("coupon");
+
+  // now decrease the stock
+  const stockAdjustPromise = [];
+  for (let item of cart.items) {
+    if (item.product) {
+      stockAdjustPromise.push(
+        productModel.findOneAndUpdate(
+          { _id: item.product._id },
+          { $inc: { stock: -item.quantity, totalSales: item.quantity } },
+          { new: true }
+        )
+      );
+    }
+    if (item.variant) {
+      stockAdjustPromise.push(
+        variantModel.findOneAndUpdate(
+          { _id: item.variant._id },
+          { $inc: { stockVariant: -item.quantity, totalSales: item.quantity } },
+          { new: true }
+        )
+      );
+    }
+  }
+
+  // make a order
+  let order = null;
+  try {
+    order = new orderModel({
+      user: user,
+      guestId: guestId,
+      shippingInfo: shippingInfo,
+      deliveryCharge: deliveryCharge,
+    });
+
+    //  applly deliveryCharge
+    const { name, charge } = await applyDeliveryCharge(deliveryCharge);
+
+    const transactionid = `INV-${crypto
+      .randomUUID()
+      .split("-")[0]
+      .toLocaleUpperCase()}`;
+
+    // item add
+    order.items = cart.items.map((item) => {
+      const plainItem = item.toObject();
+      if (plainItem.product && typeof plainItem.product === "object") {
+        plainItem.product = {
+          _id: plainItem.product._id,
+          name: plainItem.product.name,
+          price: plainItem.product.retailPrice,
+          image: plainItem.product.image,
+          totalSales: plainItem.product.totalSales,
+        };
+      }
+
+      if (plainItem.variant && typeof plainItem.variant === "object") {
+        plainItem.variant = {
+          _id: plainItem.variant._id,
+          name: plainItem.variant.variantName,
+          price: plainItem.variant.retailPrice,
+          image: plainItem.variant.image,
+          totalSales: plainItem.variant.totalSales,
+        };
+      }
+      return plainItem;
+    });
+
+    // update order filed
+    order.finalAmount = Math.round(cart.finalAmount + charge);
+    order.discountAmount = cart.discountValue;
+    order.shippingInfo.deliveryZone = name;
+
+    order.totalQuantity = cart.totalQuantity;
+    order.transactionId = transactionid;
+
+    // invoice
+    const invoice = await invoiceModel.create({
+      invoiceId: transactionid,
+      order: order._id,
+      customerDetails: shippingInfo,
+      discountAmount: order.discountAmount,
+      finalAmount: order.finalAmount,
+      deliveryChargeAmount: charge,
+    });
+
+    // payement status
+    if (paymentMethod == "cod") {
+      order.paymentMethod = "cod";
+      order.paymentStatus = "Pending";
+      order.orderStatus = "Pending";
+      order.invoiceId = invoice.invoiceId;
+    } else {
+      const data = {
+        total_amount: order.finalAmount,
+        currency: "BDT",
+        tran_id: transactionid,
+        success_url: `${process.env.BACKEND_URL}${process.env.BASE_URL}/payment/success`,
+        fail_url: `${process.env.BACKEND_URL}${process.env.BASE_URL}/payment/fail`,
+        cancel_url: `${process.env.BACKEND_URL}${process.env.BASE_URL}/payment/cancle`,
+        ipn_url: `${process.env.BACKEND_URL}${process.env.BASE_URL}/payment/ipn`,
+        shipping_method: "Courier",
+        product_name: "Computer.",
+        product_category: "Electronic",
+        product_profile: "general",
+        cus_name: order.shippingInfo.fullName,
+        cus_email: order.shippingInfo.email,
+        cus_add1: order.shippingInfo.address,
+        cus_city: "Dhaka",
+        cus_state: "Dhaka",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: order.shippingInfo.phone,
+        ship_name: order.shippingInfo.fullName,
+        ship_add1: order.shippingInfo.address,
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const Response = await sslcz.init(data);
+      if (!Response.GatewayPageURL)
+        throw new customError(500, "pailed initiated failed !!");
+      order.paymentMethod = "sslcommerz";
+      order.paymentStatus = "Pending";
+      order.orderStatus = "Pending";
+      order.invoiceId = invoice.invoiceId;
+      order.paymentGatewayData = Response;
+      // send Confirmed sms
+      if (shippingInfo.email) {
+        const template = orderTemplate(cart, order.finalAmount, charge);
+        sendEmail(shippingInfo.email, template, "Order Confrim");
+      }
+      if (shippingInfo.phone) {
+        const res = await smsSend(shippingInfo.phone, "order confrim");
+        console.log(res);
+      }
+      await order.save();
+      return apiResponse.sendSuccess(res, 201, "easyCheckouturl", {
+        url: Response.GatewayPageURL,
+      });
+    }
+    // send Confirmed sms
+    if (shippingInfo.email) {
+      const template = orderTemplate(cart, order.finalAmount, charge);
+      sendEmail(shippingInfo.email, template, "Order Confrim");
+    }
+    if (shippingInfo.phone) {
+      const res = await smsSend(shippingInfo.phone, "order confrim");
+      console.log(res);
+    }
+    await order.save();
+    apiResponse.sendSuccess(res, 201, "order place sucessfull", order);
+  } catch (error) {
+    console.log(error);
+    const stockAdjustPromise = [];
+    for (let item of cart.items) {
+      if (item.product) {
+        stockAdjustPromise.push(
+          productModel.findOneAndUpdate(
+            { _id: item.product._id },
+            { $inc: { stock: item.quantity, totalSales: -item.quantity } },
+            { new: true }
+          )
+        );
+      }
+      if (item.variant) {
+        stockAdjustPromise.push(
+          variantModel.findOneAndUpdate(
+            { _id: item.variant._id },
+            {
+              $inc: { stockVariant: item.quantity, totalSales: -item.quantity },
+            },
+            { new: true }
+          )
+        );
+      }
+    }
+
+    await Promise.all(stockAdjustPromise);
+  }
+});
+
+// send email
+const sendEmail = async (email, template, msg) => {
+  const info = await emailSend(email, template, msg);
+  console.log(info);
+};
+
+// get all order
+exports.getAllOrder = asyncHandler(async (req, res) => {
+  const allorder = await orderModel
+    .find({})
+    .populate("deliveryCharge items.variant items.product")
+    .sort({ createdAt: -1 });
+
+  if (!allorder.length) throw new customError(500, "order not Found !!");
+  apiResponse.sendSuccess(res, 200, "ordere retrive succesfully", allorder);
+});
+
+// update order information
+exports.updateOrderInfo = asyncHandler(async (req, res) => {
+  const { id, status, shippingInfo } = req.body;
+  const updateinfo = await orderModel.findOneAndUpdate(
+    { _id: id },
+    {
+      orderStatus: status,
+      shippingInfo: { ...shippingInfo },
+    },
+    { new: true }
+  );
+
+  if (!updateinfo) throw new customError(401, "not updated info ");
+  apiResponse.sendSuccess(res, 200, "order updated sucessfully", updateinfo);
+});
+
+// get all order status
+exports.OrderStatus = asyncHandler(async (req, res) => {
+  const updateinfo = await orderModel.aggregate([
+    {
+      $group: {
+        _id: "$orderStatus",
+        count: { $sum: 1 },
+        totalAmount: { $sum: "$finalAmount" },
+        averageAmount: { $avg: "$finalAmount" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        name: "$_id",
+        count: 1,
+        totalAmount: 1,
+        averageAmount: 1,
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        orderStatusInfo: {
+          $push: {
+            name: "$name",
+            count: "$count",
+            total: "$totalAmount",
+            averageAmount: "$averageAmount",
+          },
+        },
+        totalOrder: { $sum: "$count" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        orderStatusInfo: 1,
+        totalOrder: 1,
+      },
+    },
+  ]);
+
+  if (!updateinfo || updateinfo.length === 0) {
+    throw new customError(401, "No order status information found");
+  }
+
+  apiResponse.sendSuccess(
+    res,
+    200,
+    "Order status retrieved successfully",
+    updateinfo[0]
+  );
+});
+
+// get all CourierPending order
+exports.CourierPending = asyncHandler(async (req, res) => {
+  const updateinfo = await orderModel.aggregate([
+    {
+      $match: {
+        orderStatus: "CourierPending",
+      },
+    },
+    {
+      $project: {
+        paymentGatewayData: 0,
+      },
+    },
+  ]);
+
+  if (!updateinfo || updateinfo.length === 0) {
+    throw new customError(401, "No order status information found");
+  }
+
+  apiResponse.sendSuccess(
+    res,
+    200,
+    "Order CourierPending  successfully",
+    updateinfo[0]
+  );
+});
+
+// send order into courier
+exports.Couriersend = asyncHandler(async (req, res) => {
+  const { id } = req.body;
+  const orderinfo = await orderModel.findById(id);
+  const { shippingInfo, finalAmount, transactionId } = orderinfo;
+  const cData = await instance.post("/create_order", {
+    invoice: transactionId,
+    recipient_name: shippingInfo.fullName,
+    recipient_phone: shippingInfo.phone,
+    recipient_address: shippingInfo.address,
+    cod_amount: finalAmount,
+  });
+  const { consignment } = cData.data;
+  orderinfo.courier.name = "steadFast";
+  orderinfo.courier.trackingId = consignment.tracking_code;
+  orderinfo.courier.rawResponse = consignment;
+  orderinfo.courier.status = consignment.status;
+  orderinfo.orderStatus = consignment.status;
+  await orderinfo.save();
+  apiResponse.sendSuccess(res, 200, "send courier sucesfully", orderinfo);
+});
+
+exports.webhook = asyncHandler(async (req, res) => {
+  const { invoice, status } = req.body;
+  console.log(req.body);
+  console.log(req.headers);
+  res.status(200).json({
+    status: "success",
+    message: "Webhook received successfully.",
+  });
+  return;
+  try {
+    const orderinfo = await orderModel.findOne({ transactionId: invoice });
+    orderinfo.courier.rawResponse = req.body;
+    orderinfo.courier.status = status;
+    orderinfo.orderStatus = status;
+    await orderinfo.save();
+    res.status(200).json({
+      status: "success",
+      message: "Webhook received successfully.",
+    });
+  } catch (error) {
+    return res.status(200).json({
+      status: "error",
+      message: "Invalid consignment ID.",
+    });
+  }
+});
