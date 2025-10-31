@@ -1,4 +1,5 @@
-import { FaChevronDown, FaFacebook, FaInstagram, FaPinterestP, FaReddit, FaTwitter, FaYoutube } from "react-icons/fa"
+import React from "react"
+import { icons } from "../../helpers/iconProvider"
 
 const WelcomeBar = () => {
     const handleLanguageDropdownBtn = () => { }
@@ -13,25 +14,25 @@ const WelcomeBar = () => {
                     <div className="socials flex justify-center items-center gap-[12px]">
                         <div className="font-public-sans text-[14px] font-normal leading-5 text-white">Follow us:</div>
                         <div className="flex justify-center items-center gap-[12px] text-white">
-                            <span className="cursor-pointer"><FaTwitter /></span>
-                            <span className="cursor-pointer"><FaFacebook /></span>
-                            <span className="cursor-pointer"><FaPinterestP /></span>
-                            <span className="cursor-pointer"><FaReddit /></span>
-                            <span className="cursor-pointer"><FaYoutube /></span>
-                            <span className="cursor-pointer"><FaInstagram /></span>
+                            <span className="cursor-pointer">{icons.twitter}</span>
+                            <span className="cursor-pointer">{icons.facebook}</span>
+                            <span className="cursor-pointer">{icons.pinterest}</span>
+                            <span className="cursor-pointer">{icons.reddit}</span>
+                            <span className="cursor-pointer">{icons.youtube}</span>
+                            <span className="cursor-pointer">{icons.instagram}</span>
                         </div>
                     </div>
                     <div className="dropDowns flex justify-center items-center gap-[24px] text-white">
                         <div className="languages">
                             <button onClick={handleLanguageDropdownBtn} className="flex justify-center items-center gap-[6px] cursor-pointer">
                                 <span className="font-public-sans text-[14px] font-normal leading-5 text-white">Eng</span>
-                                <span className="text-[12px] text-[#80A4BB]"><FaChevronDown /></span>
+                                <span className="text-[12px] text-[#80A4BB]">{icons.chevronDown}</span>
                             </button>
                         </div>
                         <div className="currency">
                             <button onClick={handleCurrencyDropdownBtn} className="flex justify-center items-center gap-[6px] cursor-pointer">
                                 <span className="font-public-sans text-[14px] font-normal leading-5 text-white">USD</span>
-                                <span className="text-[12px] text-[#80A4BB]"><FaChevronDown /></span>
+                                <span className="text-[12px] text-[#80A4BB]">{icons.chevronDown}</span>
                             </button>
                         </div>
                     </div>
@@ -41,4 +42,4 @@ const WelcomeBar = () => {
     )
 }
 
-export default WelcomeBar
+export default React.memo(WelcomeBar) || WelcomeBar

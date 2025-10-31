@@ -1,7 +1,5 @@
-import { FiShoppingCart } from "react-icons/fi"
-import { GoHeart } from "react-icons/go"
-import { LuSearch } from "react-icons/lu"
-import { PiUser } from "react-icons/pi"
+import React from "react"
+import { icons } from "../../helpers/iconProvider"
 
 const SearchBar = () => {
     return (
@@ -21,16 +19,16 @@ const SearchBar = () => {
                         "
                         placeholder="Search for anything..."
                     />
-                    <span className="text-[20px] text-gray-900 cursor-pointer"><LuSearch /></span>
+                    <span className="text-[20px] text-gray-900 cursor-pointer">{icons.search}</span>
                 </div>
                 <div className="options flex justify-center items-center gap-[24px]">
-                    <span className="cursor-pointer text-[32px] text-white"><FiShoppingCart /></span>
-                    <span className="cursor-pointer text-[32px] text-white"><GoHeart /></span>
-                    <span className="cursor-pointer text-[32px] text-white"><PiUser /></span>
+                    <span className="cursor-pointer text-[32px] text-white">{icons.shoppingCart}</span>
+                    <span className="cursor-pointer text-[32px] text-white">{icons.heart}</span>
+                    <span className="cursor-pointer text-[32px] text-white">{icons.user}</span>
                 </div>
             </div>
         </div>
     )
 }
 
-export default SearchBar
+export default React.memo(SearchBar) || SearchBar

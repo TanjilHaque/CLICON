@@ -1,17 +1,13 @@
-
-import Navbar from './components/BarComponents/Navbar'
-import OfferBar from './components/BarComponents/OfferBar'
-import SearchBar from './components/BarComponents/SearchBar'
-import WelcomeBar from './components/BarComponents/WelcomeBar'
+import { BrowserRouter, Routes, Route } from "react-router";
+import Home from "./pages/Home";
 
 const App = () => {
   return (
-    <div>
-      <OfferBar></OfferBar>
-      <WelcomeBar></WelcomeBar>
-      <SearchBar></SearchBar>
-      <Navbar></Navbar>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home></Home>} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

@@ -1,7 +1,6 @@
+import React from "react"
 import { useState } from "react"
-import { GoArrowRight } from "react-icons/go"
-import { RxCross2 } from "react-icons/rx"
-
+import { icons } from "../../helpers/iconProvider";
 
 const OfferBar = () => {
     const [offerBarStatus, setOfferBarStatus] = useState(true);
@@ -29,13 +28,13 @@ const OfferBar = () => {
                         <button className="shopNow bg-warning-500 px-[24px] flex justify-center items-center gap-[8px]
                              cursor-pointer duration-300 hover:bg-warning-300 rounded-[2px]">
                             <span className="text-blackk leading-12 font-public-sans font-bold text-[14px]">Shop Now</span>
-                            <span className="text-blackk text-[20px]"><GoArrowRight /></span>
+                            <span className="text-blackk text-[20px]">{icons.arrowRight}</span>
                         </button>
                     </div>
                 </div>
                 <button onClick={offerCancelBtn} className="offerCancelBtn p-[8px] rounded-[2px] bg-dark-gray text-white
                      absolute right-[24px] top-[24px] cursor-pointer duration-300 hover:text-dark-gray hover:bg-white">
-                    <span className="text-[16px]"><RxCross2 /></span>
+                    <span className="text-[16px]">{icons.cross}</span>
                 </button>
             </div>
         ) : (
@@ -46,4 +45,4 @@ const OfferBar = () => {
 
 }
 
-export default OfferBar
+export default React.memo(OfferBar) || OfferBar
