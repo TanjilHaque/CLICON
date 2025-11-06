@@ -31,4 +31,4 @@ app.use(`/api/v1`, require("./routes/index"));
 // error handaling middleware
 app.use(globalErrorHandler);
 
-module.exports = { server, io };
+module.exports = { server, io, app };

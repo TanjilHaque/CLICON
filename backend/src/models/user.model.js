@@ -1,9 +1,9 @@
+require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const { customError } = require("../uitils/customError");
 const { Schema, Types } = mongoose;
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
 
 const userSchema = new Schema({
   firstName: {
@@ -19,37 +19,52 @@ const userSchema = new Schema({
     type: String,
     trim: true,
   },
-  credential: {
+  email: {
     type: String,
     trim: true,
     unique: true,
-    required: true,
+  },
+  phoneNumber: {
+    type: String,
   },
   password: {
     type: String,
     trim: true,
     required: true,
   },
-  image: {
+  image: {},
+  adress: {
     type: String,
     trim: true,
   },
-  address: {
-    type: String,
-    trim: true,
-  },
-  isUserVerified: {
+  isEmailVerified: {
     type: Boolean,
     default: false,
   },
-  role: {
-    type: mongoose.Types.ObjectId,
-    ref: "Role",
+  isPhoneVerified: {
+    type: Boolean,
+    default: false,
   },
-  permission: {
-    type: mongoose.Types.ObjectId,
-    ref: "Permission",
-  },
+  role: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+    },
+  ],
+  permissions: [
+    {
+      permissionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Permisson",
+      },
+      actions: [
+        {
+          type: String,
+          enum: ["view", "add", "edit", "delete"],
+        },
+      ],
+    },
+  ],
   region: {
     type: String,
     trim: true,
@@ -104,83 +119,71 @@ const userSchema = new Schema({
   resetPasswordExpireTime: Date,
   twoFactorEnabled: Boolean,
   isBlocked: Boolean,
-  isActive: Boolean,
+  createdBy: {
+    type: Types.ObjectId,
+    ref: "User",
+  },
   refreshToken: {
     type: String,
     trim: true,
   },
+  isActive: Boolean,
 });
 
-//schema middleware
+// schema middleware
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
-    try {
-      const saltPassword = await bcrypt.hash(this.password, 10);
-      this.password = saltPassword;
-    } catch (error) {
-      console.log("error from bycrypt hashing password middleware");
-    }
+    this.password = await bcrypt.hash(this.password, 10);
   }
   next();
 });
 
-//check if the user already exists
+// check already exist this email or not
 userSchema.pre("save", async function (next) {
-  const findUser = await this.constructor.findOne({
-    credential: this.credential,
-  });
+  const findUser = await this.constructor.findOne({ email: this.email });
   if (findUser && findUser._id.toString() !== this._id.toString()) {
-    throw new customError(
-      400,
-      "user already exists, try another email or phone number"
-    );
+    throw new customError(400, "User already Exist try anther email !");
   }
   next();
 });
 
-// compare password
-userSchema.methods.compareHashPassword = async function (plainPassword) {
-  return await bcrypt.compare(plainPassword, this.password);
-};
-
-//generate accessToken method
-userSchema.methods.generateAccessToken = async function () {
+// generate accesToken method
+userSchema.methods.generateAccesToken = async function () {
   return await jwt.sign(
     {
       userId: this._id,
-      credential: this.credential,
+      email: this.email,
       role: this.role,
     },
-    process.env.ACCESS_TOKEN_SECRET,
-    {
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRE,
-    }
+    process.env.ACCESTOKEN_SECRET,
+    { expiresIn: process.env.ACCESTOKEN_EXPIRE }
   );
-  return accessToken;
 };
 
-//generate refreshToken method
+// compare hash password
+userSchema.methods.compareHashPassword = async function (humanPass) {
+  return await bcrypt.compare(humanPass, this.password);
+};
+// generate RefreshToken method
+
 userSchema.methods.generateRefreshToken = async function () {
   return await jwt.sign(
     {
       userId: this._id,
     },
-    process.env.REFRESH_TOKEN_SECRET,
-    {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRE,
-    }
+    process.env.REFRESHTOKEN_SECRET,
+    { expiresIn: process.env.REFRESHTOKEN_EXPIRE }
   );
-  return refreshToken;
 };
 
-//verify access token method
-userSchema.methods.verifyAccessToken = function (token) {
-  return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+// verify AccesToken Token
+userSchema.methods.verifyAccesToken = function (token) {
+  return jwt.verify(token, process.env.ACCESTOKEN_SECRET);
 };
 
-//verify refresh token method
+// verify RefreshToken Token
 userSchema.methods.verifyRefreshToken = function (token) {
-  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+  return jwt.verify(token, process.env.REFRESHTOKEN_SECRET);
 };
 
 module.exports = mongoose.model("User", userSchema);
